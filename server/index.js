@@ -26,37 +26,43 @@ app.post("/register", (req, res) => {
     .catch((err) => res.json(err))
 })
 
-app.post("/login", (req, res) => {
-  const { email, password } = req.body
-  StudentModel.findOne({ email })
-    .then((user) => {
-      if (user) {
-        if (user.password === password) {
-          const accessToken = jwt.sign(
-            { email: email },
-            "jwt-access-token-secret-key",
-            { expiresIn: "1m" }
-          )
-          const refreshToken = jwt.sign(
-            { email: email },
-            "jwt-refresh-token-secret-key",
-            { expiresIn: "5m" }
-          )
-          res.cookie("accessToken", accessToken, { maxAge: 60000 })
-          res.cookie("refreshToken", refreshToken, {
-            maxAge: 300000,
-            httpOnly: true,
-            secure: true,
-            sameSite: "strict",
-          })
-          res.json({ Login: true, email})
-        }
-      } else {
-        res.json({ Login: false, Message: "No Record" })
-      }
-    })
-    .catch((err) => res.json(err))
-})
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await StudentModel.findOne({ email });
+
+    if (!user || user.password !== password) {
+      return res.json({ Login: false, Message: "Invalid email or password" });
+    }
+
+    const accessToken = jwt.sign(
+      { email },
+      "jwt-access-token-secret-key",
+      { expiresIn: "1m" }
+    );
+
+    const refreshToken = jwt.sign(
+      { email },
+      "jwt-refresh-token-secret-key",
+      { expiresIn: "5m" }
+    );
+
+    res.cookie("accessToken", accessToken, { maxAge: 60000 });
+    res.cookie("refreshToken", refreshToken, {
+      maxAge: 300000,
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+    });
+
+    return res.json({ Login: true, email });
+
+  } catch (err) {
+    return res.status(500).json({ Login: false, Message: "Server error", error: err.message });
+  }
+});
+
 
 const verifyUser = (req, res, next) => {
   const accessToken = req.cookies.accessToken;
