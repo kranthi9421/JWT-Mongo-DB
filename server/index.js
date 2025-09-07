@@ -59,45 +59,40 @@ app.post("/login", (req, res) => {
 })
 
 const verifyUser = (req, res, next) => {
-  const accesstoken = req.cookies.accessToken
-  if (!accesstoken) {
-    if (renewToken(req, res)) {
-      next()
-    }
-  } else {
-    jwt.verify(accesstoken, "jwt-access-token-secret-key", (err, decoded) => {
-      if (err) {
-        return res.json({ valid: false, message: "Invalid token" })
-      } else {
-        req.email = decoded.email
-        next()
-      }
-    })
-  }
-}
+  const accessToken = req.cookies.accessToken;
 
-const renewToken = (req, res) => {
-  const refreshtoken = req.cookies.refreshTokenToken
-  let exist = false
-  if (!refreshtoken) {
-    return res.json({ valid: false, message: "No refrsh token" })
+  if (accessToken) {
+    jwt.verify(accessToken, "jwt-access-token-secret-key", (err, decoded) => {
+      if (err) return res.json({ valid: false, message: "Access token expired" });
+
+      req.email = decoded.email;
+      next();
+    });
   } else {
-    jwt.verify(refreshtoken, "jwt-refresh-secret-key", (err, decoded) => {
-      if (err) {
-        return res.json({ valid: false, message: "Invalid Refresh token" })
-      } else {
-        const accessToken = jwt.sign(
-          { email: decoded.email },
-          "jwt-access-token-secret-key",
-          { expiresIn: "1m" }
-        )
-        res.cookie("accessToken", accessToken, { maxAge: 60000 })
-        exist = true
-      }
-    })
+    renewToken(req, res, next);
   }
-  return exist
-}
+};
+
+const renewToken = (req, res, next) => {
+  const refreshToken = req.cookies.refreshToken;
+
+  if (!refreshToken) return res.json({ valid: false, message: "No refresh token" });
+
+  jwt.verify(refreshToken, "jwt-refresh-token-secret-key", (err, decoded) => {
+    if (err) return res.json({ valid: false, message: "Refresh token expired" });
+
+    const newAccessToken = jwt.sign(
+      { email: decoded.email },
+      "jwt-access-token-secret-key",
+      { expiresIn: "1m" }
+    );
+
+    res.cookie("accessToken", newAccessToken, { maxAge: 60000 });
+    req.email = decoded.email;
+    next();
+  });
+};
+
 
 app.get("/dashboard", verifyUser, (req, res) => {
   return res.json({ valid: true, message: "autorized" })
