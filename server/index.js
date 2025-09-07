@@ -19,12 +19,17 @@ app.use(cookieParser())
 
 mongoose.connect("mongodb://localhost:27017/school")
 
-app.post("/register", (req, res) => {
-  const { name, email, password } = req.body
-  StudentModel.create({ name, email, password })
-    .then((user) => res.json(user))
-    .catch((err) => res.json(err))
-})
+app.post("/register", async (req, res) => {
+  const { name, email, password } = req.body;
+
+  try {
+    const user = await StudentModel.create({ name, email, password });
+    res.json(user);
+  } catch (err) {
+    res.json(err);
+  }
+});
+
 
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
